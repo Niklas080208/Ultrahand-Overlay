@@ -1,0 +1,47 @@
+# Build artifacts
+build/
+out/
+*.elf
+*.lst
+*.nacp
+*.ovl
+*.o
+*.a
+*.map
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Custom packages (uncomment if you don't want to track these)
+# "NiklasCFW und Firmware Downloader/"
+# "examples/Update Checker/"
+
+# Temporary files
+*.tmp
+*.log
+*.cache
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# Distribution / packaging
+*.zip
+sdout/
+sdout.zip
+

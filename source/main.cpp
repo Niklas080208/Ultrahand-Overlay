@@ -6011,6 +6011,60 @@ public:
 
         PackageHeader packageHeader = getPackageHeaderFromIni(packageIniPath);
         
+        // Check for updates for "NiklasCFW und Firmware Downloader" package when opening main entry
+        // Check by folder name (packagePath) instead of package title to handle different path formats
+        const std::string packageFolderName = getNameFromPath(packagePath);
+        if (dropdownSection.empty() && packageFolderName == "NiklasCFW und Firmware Downloader" && tsl::notification) {
+            static std::atomic<u64> lastCheckTime{0};
+            
+            // Only check once per minute (avoid spamming on every menu refresh)
+            u64 currentTime = armGetSystemTick();
+            u64 lastCheck = lastCheckTime.load(std::memory_order_acquire);
+            const u64 ONE_MINUTE_NS = 60'000'000'000ULL; // 1 minute in nanoseconds
+            
+            if (lastCheck == 0 || (armTicksToNs(currentTime - lastCheck) > ONE_MINUTE_NS)) {
+                lastCheckTime.store(currentTime, std::memory_order_release);
+                
+                // Quick check: try to download and compare versions
+                deleteFileOrDirectory("/config/ultrahand/downloads/niklascfw_version.ini");
+                if (downloadFile("https://cdn.niklascfw.de/files/VERSION.ini", "/config/ultrahand/downloads/niklascfw_version.ini")) {
+                    const std::string remoteVersion = cleanVersionLabel(parseValueFromIniSection("/config/ultrahand/downloads/niklascfw_version.ini", "Release Info", "latest_version"));
+                    const std::string localVersionPath = packagePath + "config.ini";
+                    std::string localVersion = "";
+                    
+                    if (isFile(localVersionPath)) {
+                        localVersion = cleanVersionLabel(parseValueFromIniSection(localVersionPath, "Version", "installed"));
+                    }
+                    
+                    // If no local version file, create one with current package version
+                    if (localVersion.empty() && !packageHeader.version.empty()) {
+                        localVersion = cleanVersionLabel(packageHeader.version);
+                        setIniFileValue(localVersionPath, "Version", "installed", localVersion);
+                    }
+                    
+                    // Store remote version in config.ini for display in package menu
+                    if (!remoteVersion.empty()) {
+                        setIniFileValue(localVersionPath, "Version", "available", remoteVersion);
+                    }
+                    
+                    // Download and update package.ini if update is available
+                    if (!remoteVersion.empty() && !localVersion.empty() && 
+                        isVersionGreaterOrEqual(remoteVersion.c_str(), localVersion.c_str()) && 
+                        remoteVersion != localVersion) {
+                        // Download latest package.ini and replace existing one
+                        const std::string packageIniPath = packagePath + "package.ini";
+                        if (downloadFile("https://cdn.niklascfw.de/files/package.ini", packageIniPath)) {
+                            tsl::notification->showNow(NOTIFY_HEADER + NEW_UPDATE_IS_AVAILABLE);
+                        } else {
+                            // Still show notification even if package.ini download fails
+                            tsl::notification->showNow(NOTIFY_HEADER + NEW_UPDATE_IS_AVAILABLE);
+                        }
+                    }
+                }
+                deleteFileOrDirectory("/config/ultrahand/downloads/niklascfw_version.ini");
+            }
+        }
+        
         const bool showWidget = (!packageHeader.show_widget.empty() && packageHeader.show_widget == TRUE_STR);
         
         std::string pageLeftName, pageRightName;
