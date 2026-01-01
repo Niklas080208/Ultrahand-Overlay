@@ -408,7 +408,7 @@ bool processHold(uint64_t keysDown, uint64_t keysHeld, u64& holdStartTick, bool&
     else if (keysDown & KEY_RIGHT) lastSelectedListItem->shakeHighlight(tsl::FocusDirection::Right);
     // Update hold progress
     const u64 elapsedMs = armTicksToNs(armGetSystemTick() - holdStartTick) / 1000000;
-    const int percentage = std::min(100, static_cast<int>((elapsedMs * 100) / 5000));
+    const int percentage = std::min(100, static_cast<int>((elapsedMs * 100) / 4000));
     displayPercentage.store(percentage, std::memory_order_release);
     if (percentage > 20 && (percentage % 30) == 0)
         triggerRumbleDoubleClick.store(true, std::memory_order_release);
@@ -465,16 +465,16 @@ private:
 
                 if (targetMenu == "softwareUpdateMenu") {
                     deleteFileOrDirectory(SETTINGS_PATH+"RELEASE.ini");
-                    downloadFile(LATEST_RELEASE_INFO_URL, SETTINGS_PATH);
-                    downloadPercentage.store(-1, release);
+                    downloadFile(LATEST_RELEASE_INFO_URL, SETTINGS_PATH, false, true);
+                    //downloadPercentage.store(-1, release);
                 } else if (targetMenu == "themeMenu") {
                     if (!isFile(THEMES_PATH+"ultra.ini")) {
-                        downloadFile(INCLUDED_THEME_FOLDER_URL+"ultra.ini", THEMES_PATH);
-                        downloadPercentage.store(-1, release);
+                        downloadFile(INCLUDED_THEME_FOLDER_URL+"ultra.ini", THEMES_PATH, false, true);
+                        //downloadPercentage.store(-1, release);
                     }
-                    if (!isFile(THEMES_PATH+"classic.ini")) {
-                        downloadFile(INCLUDED_THEME_FOLDER_URL+"classic.ini", THEMES_PATH);
-                        downloadPercentage.store(-1, release);
+                    if (!isFile(THEMES_PATH+"ultra-blue.ini")) {
+                        downloadFile(INCLUDED_THEME_FOLDER_URL+"ultra-blue.ini", THEMES_PATH, false, true);
+                        //downloadPercentage.store(-1, release);
                     }
                 }
 
@@ -765,34 +765,6 @@ private:
 
             if (iniKey == "page_swap") {
                 triggerMenuReload = firstState->value() != state;
-            //} else if (iniKey == "memory_expansion") {
-            //    if (!isFile(EXPANSION_PATH + "nx-ovlloader.zip")) {
-            //        if (isVersionGreaterOrEqual(amsVersion,"1.8.0"))
-            //            downloadFile(NX_OVLLOADER_ZIP_URL, EXPANSION_PATH);
-            //        else
-            //            downloadFile(OLD_NX_OVLLOADER_ZIP_URL, EXPANSION_PATH);
-            //        downloadPercentage.store(-1, release);
-            //    }
-            //    if (!isFile(EXPANSION_PATH + "nx-ovlloader+.zip")) {
-            //        if (isVersionGreaterOrEqual(amsVersion,"1.8.0"))
-            //            downloadFile(NX_OVLLOADER_PLUS_ZIP_URL, EXPANSION_PATH);
-            //        else
-            //            downloadFile(OLD_NX_OVLLOADER_PLUS_ZIP_URL, EXPANSION_PATH);
-            //        downloadPercentage.store(-1, release);
-            //    }
-            //    if (!isFile(EXPANSION_PATH + "nx-ovlloader.zip") || !isFile(EXPANSION_PATH + "nx-ovlloader+.zip")) {
-            //        listItem->setState(loaderTitle == "nx-ovlloader+");
-            //    } else {
-            //        //executeCommands({
-            //        //    //{"try:"},
-            //        //    //{"del", EXPANSION_PATH + (actualState ? "nx-ovlloader+/" : "nx-ovlloader/")},
-            //        //    {"unzip", EXPANSION_PATH + (actualState ? "nx-ovlloader+.zip" : "nx-ovlloader.zip"), "/"}
-            //        //    //{"notify", REBOOT_IS_REQUIRED}
-            //        //});
-            //        if (unzipFile(EXPANSION_PATH + (actualState ? "nx-ovlloader+.zip" : "nx-ovlloader.zip"), "sdmc:/") && (firstState->value() != state)) {
-            //            notifyRebootIsRequiredNow = true;
-            //        }
-            //    }
             } else if (iniKey == "right_alignment") {
                 if (!state) {
                     //const auto [horizontalUnderscanPixels, verticalUnderscanPixels] = tsl::gfx::getUnderscanPixels();
@@ -815,9 +787,9 @@ private:
                 }
             } else if (iniKey == "sound_effects") {
                 if (actualState) {
-                    AudioPlayer::initialize();
+                    Audio::initialize();
                 } else {
-                    AudioPlayer::exit();
+                    Audio::exit();
                 }
             }
 
@@ -1103,16 +1075,6 @@ public:
             tableData = {{SYSTEM_RAM, "", ramString}};
             addTable(list, tableData, "", 165+2, 19-2, 19-2, 0, "header", ramColor, DEFAULT_STR, RIGHT_STR, true, true);
 
-            //addGap(list, 12);
-
-            // Memory expansion toggle - single evaluation, short-circuit OR
-            //useMemoryExpansion = ult::expandedMemory || 
-            //                     (parseValueFromIniSection(ULTRAHAND_CONFIG_INI_PATH, ULTRAHAND_PROJECT_NAME, "memory_expansion") == TRUE_STR);
-            //createToggleListItem(list, MEMORY_EXPANSION, useMemoryExpansion, "memory_expansion", false, false, false, false);
-            
-            // At the top of your function/class, get current heap size
-            //OverlayHeapSize currentHeapSize = getCurrentHeapSize();
-            
             // Read custom overlay memory from INI
             const std::string customMemoryStr = parseValueFromIniSection(ULTRAHAND_CONFIG_INI_PATH, MEMORY_STR, "custom_overlay_memory_MB");
             
@@ -1186,18 +1148,8 @@ public:
             // Track the last MB value the slider was at
             auto lastSliderMB = std::make_shared<u32>(currentHeapMB);
             
-            // Create trackers for each notification type
-            //auto soundEnabledShown = std::make_shared<bool>(false);
-            //auto wallpaperEnabledShown = std::make_shared<bool>(false);
-            //auto wallpaperDisabledShown = std::make_shared<bool>(false);
-            //auto soundDisabledShown = std::make_shared<bool>(false);
-            //auto notEnoughMemoryShown = std::make_shared<bool>(false);
-            
             // Use simple callback - gets called when user releases the trackbar
             heapTrackbar->setSimpleCallback([this, freeRamMB, lastSliderMB, customMemoryMB, hasIniEntry](s16 value, s16 index) {
-            //heapTrackbar->setSimpleCallback([this, freeRamMB, lastSliderMB, soundEnabledShown, wallpaperEnabledShown, 
-            //                                  wallpaperDisabledShown, soundDisabledShown, notEnoughMemoryShown, 
-            //                                  customMemoryMB, hasIniEntry](s16 value, s16 index) {
                 // Map step index → heap size
                 u64 newHeapBytes;
                 u32 newMB;
@@ -1244,10 +1196,6 @@ public:
                     if (static_cast<float>(newMB) > (totalAvailableMB - SAFETY_MARGIN_MB)) {
                         // Not enough memory - REJECT the change
                         if (tsl::notification) {
-                            //if (!*notEnoughMemoryShown) {
-                            //    tsl::notification->showNow(NOTIFY_HEADER+"Not enough memory.");
-                            //    *notEnoughMemoryShown = true;
-                            //}
                             tsl::notification->showNow(NOTIFY_HEADER + NOT_ENOUGH_MEMORY);
                         }
                         setOverlayHeapSize(currentHeapSize);
@@ -1267,38 +1215,18 @@ public:
                         // Going down - check for disabled features
                         if (previousSliderMB >= 8 && newMB < 8) {
                             // Wallpaper disabled
-                            //if (!*wallpaperDisabledShown ) {
-                            //    tsl::notification->showNow(NOTIFY_HEADER+"Wallpaper support disabled.", 23);
-                            //    *wallpaperDisabledShown = true;
-                            //}
-                            //*wallpaperEnabledShown = false;
                             tsl::notification->showNow(NOTIFY_HEADER + WALLPAPER_SUPPORT_DISABLED, 23);
                         } else if (previousSliderMB >= 6 && newMB < 6) {
                             // Sound disabled
-                            //if (!*soundDisabledShown) {
-                            //    tsl::notification->showNow(NOTIFY_HEADER+"Sound support disabled.", 23);
-                            //    *soundDisabledShown = true;
-                            //}
-                            //*soundEnabledShown = false;
                             tsl::notification->showNow(NOTIFY_HEADER + SOUND_SUPPORT_DISABLED, 23);
                         }
                     } else if (isSliderGrowing) {
                         // Going up - check for enabled features
                         if (previousSliderMB < 8 && newMB >= 8) {
                             // Wallpaper enabled
-                            //if (!*wallpaperEnabledShown) {
-                            //    tsl::notification->showNow(NOTIFY_HEADER+"Wallpaper support enabled.", 23);
-                            //    *wallpaperEnabledShown = true;
-                            //}
-                            //*wallpaperDisabledShown = false;
                             tsl::notification->showNow(NOTIFY_HEADER + WALLPAPER_SUPPORT_ENABLED, 23);
                         } else if (previousSliderMB < 6 && newMB >= 6) {
                             // Sound enabled
-                            //if (!*soundEnabledShown) {
-                            //    tsl::notification->showNow(NOTIFY_HEADER+"Sound support enabled.", 23);
-                            //    *soundEnabledShown = true;
-                            //}
-                            //*soundDisabledShown = false;
                             tsl::notification->showNow(NOTIFY_HEADER + SOUND_SUPPORT_ENABLED, 23);
                         }
                     }
@@ -1676,7 +1604,7 @@ public:
 
             if (!limitedMemory && useSoundEffects) {
                 reloadSoundCacheNow.store(true, std::memory_order_release);
-                //ult::AudioPlayer::initialize();
+                //ult::Audio::initialize();
             }
             //lastRunningInterpreter.store(false, std::memory_order_release);
             return true;
@@ -1737,6 +1665,18 @@ public:
             if (backKeyPressed) {
                 if (exitOnBack) {
                     ult::launchingOverlay.store(true, std::memory_order_release);
+                    tsl::Overlay::get()->close();
+                    return true;
+                }
+
+                if (softwareHasUpdated) {
+                    // Instead of going back, trigger the reload directly
+                    //disableSound.store(true, std::memory_order_release);
+
+                    setIniFileValue(ULTRAHAND_CONFIG_INI_PATH, ULTRAHAND_PROJECT_NAME, IN_OVERLAY_STR, TRUE_STR);
+
+                    ult::launchingOverlay.store(true, std::memory_order_release);
+                    tsl::setNextOverlay(OVERLAY_PATH+"ovlmenu.ovl", "--skipCombo --comboReturn");
                     tsl::Overlay::get()->close();
                     return true;
                 }
@@ -2779,7 +2719,7 @@ public:
             }
             if (!limitedMemory && useSoundEffects) {
                 reloadSoundCacheNow.store(true, std::memory_order_release);
-                //ult::AudioPlayer::initialize();
+                //ult::Audio::initialize();
             }
             //lastRunningInterpreter.store(false, std::memory_order_release);
             return true;
@@ -3984,7 +3924,7 @@ public:
 
             if (!limitedMemory && useSoundEffects) {
                 reloadSoundCacheNow.store(true, std::memory_order_release);
-                //ult::AudioPlayer::initialize();
+                //ult::Audio::initialize();
             }
             //lastRunningInterpreter.store(false, std::memory_order_release);
             return true;
@@ -6256,7 +6196,7 @@ public:
 
             if (!limitedMemory && useSoundEffects) {
                 reloadSoundCacheNow.store(true, std::memory_order_release);
-                //ult::AudioPlayer::initialize();
+                //ult::Audio::initialize();
             }
             //lastRunningInterpreter.store(false, std::memory_order_release);
             return true;
@@ -6267,7 +6207,7 @@ public:
             ult::reloadWallpaper();
             if (!limitedMemory && useSoundEffects) {
                 reloadSoundCacheNow.store(true, std::memory_order_release);
-                //ult::AudioPlayer::initialize();
+                //ult::Audio::initialize();
             }
         }
     
@@ -7599,7 +7539,7 @@ public:
             }
             if (!limitedMemory && useSoundEffects) {
                 reloadSoundCacheNow.store(true, std::memory_order_release);
-                //ult::AudioPlayer::initialize();
+                //ult::Audio::initialize();
             }
             //lastRunningInterpreter.store(false, std::memory_order_release);
             return true;
@@ -7611,7 +7551,7 @@ public:
 
             if (!limitedMemory && useSoundEffects) {
                 reloadSoundCacheNow.store(true, std::memory_order_release);
-                //ult::AudioPlayer::initialize();
+                //ult::Audio::initialize();
             }
         }
 
@@ -8200,7 +8140,7 @@ public:
                 selectedPackage.clear();
             }
         }
-        if (firstBoot && tsl::notification) {
+        if (firstBoot && tsl::notification && useNotifications) {
             tsl::notification->show("  "+ULTRAHAND_HAS_STARTED);
         }
         //settingsInitialized.exchange(true, acq_rel);
@@ -8218,25 +8158,23 @@ public:
     virtual void initServices() override {
         tsl::overrideBackButton = true; // for properly overriding the always go back functionality of KEY_B
 
-        constexpr SocketInitConfig socketInitConfig = {
-            // TCP buffers
-            .tcp_tx_buf_size     = 16 * 1024,   // 16 KB default
-            .tcp_rx_buf_size     = 16 * 1024*2,   // 16 KB default
-            .tcp_tx_buf_max_size = 64 * 1024,   // 64 KB default max
-            .tcp_rx_buf_max_size = 64 * 1024*2,   // 64 KB default max
-            
-            // UDP buffers
-            .udp_tx_buf_size     = 512,         // 512 B default
-            .udp_rx_buf_size     = 512,         // 512 B default
-        
-            // Socket buffer efficiency
-            .sb_efficiency       = 1,           // 0 = default, balanced memory vs CPU
-                                                // 1 = prioritize memory efficiency (smaller internal allocations)
-            .bsd_service_type    = BsdServiceType_Auto // Auto-select service
-        };
-        socketInitialize(&socketInitConfig);
-
-        unpackDeviceInfo();
+        //constexpr SocketInitConfig socketInitConfig = {
+        //    // TCP buffers
+        //    .tcp_tx_buf_size     = 16 * 1024,   // 16 KB default
+        //    .tcp_rx_buf_size     = 16 * 1024*2,   // 16 KB default
+        //    .tcp_tx_buf_max_size = 64 * 1024,   // 64 KB default max
+        //    .tcp_rx_buf_max_size = 64 * 1024*2,   // 64 KB default max
+        //    
+        //    // UDP buffers
+        //    .udp_tx_buf_size     = 512,         // 512 B default
+        //    .udp_rx_buf_size     = 512,         // 512 B default
+        //
+        //    // Socket buffer efficiency
+        //    .sb_efficiency       = 1,           // 0 = default, balanced memory vs CPU
+        //                                        // 1 = prioritize memory efficiency (smaller internal allocations)
+        //    .bsd_service_type    = BsdServiceType_Auto // Auto-select service
+        //};
+        //socketInitialize(&socketInitConfig);
 
         // read commands from root package's boot_package.ini
         if (firstBoot) {
@@ -8260,6 +8198,8 @@ public:
             //    tsl::notification->show("  "+ULTRAHAND_HAS_STARTED);
             
         }
+
+        unpackDeviceInfo();
         
         
         //startInterpreterThread();
@@ -8279,8 +8219,10 @@ public:
             executeIniCommands(PACKAGE_PATH + EXIT_PACKAGE_FILENAME, "exit");
 
         //cleanupCurl();
+        curl_global_cleanup(); // safe cleanup
+
         //if (!ult::limitedMemory)
-        socketExit();
+        //socketExit();
     }
     
 };
