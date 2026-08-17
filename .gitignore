@@ -1,0 +1,36 @@
+# Build
+/build/
+/out/
+/sdout/
+*.o
+*.d
+*.map
+*.elf
+*.nacp
+*.ovl
+*.nro
+*.nsp
+*.npdm
+*.pfs0
+
+# Dist packages (keep tracked archives such as .sounds/default.zip)
+/ovlmenu.zip
+/sdout.zip
+
+# Local switchbrew/libnx clone
+/libnx/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Tooling
+compile_commands.json
+.clangd
+.cache/
+
+# OS / editor
+.DS_Store
+*~
+*.swp
+Thumbs.db
